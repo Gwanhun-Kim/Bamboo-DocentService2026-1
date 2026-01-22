@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>사진동아리 오디오 도슨트</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="player-container">
+
+        <div id="welcome-overlay">
+            
+            <div id="welcome-slideshow"></div>
+            <div class="welcome-content">
+                <h2>「처음」</h2>
+                <h3>세종대학교 사진동아리 밤부<br>2026년 첫 번째 사진전</h3>
+                <p>
+                    모든 것은 처음에서 시작된다.<br>
+                    우리는 수많은 장면들을 지나치고,<br>
+                    동시에 많은 것들을 잊어버리지만,<br>
+                    ‘처음’이라는 순간은<br>
+                    가슴 속 어딘가에 계속 머물러 있다.<br> 
+                    이 전시는 우리 모두가 겪었을<br>
+                    ‘처음’이라는 순간의 설렘과 감동을<br>
+                    다시금 떠올릴 수 있게 해주는 전시이다. 
+                </p>
+                <button id="start-tour-btn">도슨트 투어 시작하기</button>
+            </div>
+        </div>
+        
+        <div id="artwork-container">
+            <img id="artwork-image" src="./images/default_artwork.jpg" alt="작품 이미지">
+        </div>
+        
+        <audio id="audio-player"></audio>
+        
+        <h3 id="now-playing-title">로드 중...</h3>
+
+        <div class="progress-container">
+            <span id="current-time-text">0:00</span>
+            <input type="range" id="progress-slider" min="0" max="100" value="0">
+            <span id="total-time-text">0:00</span>
+        </div>
+        
+        <div class="controls">
+            <button id="prev-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 18V6h2v12H6zm3.5-6L18 6v12l-8.5-6z"/>
+                </svg>
+            </button>
+            <button id="play-pause-btn">▶</button> 
+            <button id="next-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 18h2V6h-2v12zM8 6v12l8.5-6L8 6z"/>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="volume-container">
+            <span>🔉</span>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
+        </div>
+        
+        <hr>
+
+        <div id="lyrics-container">
+            <p class="lyric-line">설명을 불러오는 중입니다...</p>
+        </div>
+
+        <hr>
+        
+        <button id="list-toggle-btn">전체 작품 목록 보기</button>
+        <ul id="playlist-menu">
+        </ul>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
