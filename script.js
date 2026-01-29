@@ -139,19 +139,46 @@ startTourBtn.addEventListener('click', () => {
 
 
 // --- 6. 싱크 가사/진행률 핵심 엔진 (TimeUpdate) ---
-// ... (이전 코드와 100% 동일) ...
+let lastHighlightedIndex = -1; // (추가) 중복 실행 방지용 변수
+
 audioPlayer.addEventListener('timeupdate', () => {
     const currentTime = audioPlayer.currentTime;
     currentTimeText.textContent = formatTime(currentTime);
     progressSlider.value = currentTime;
+    
     const duration = audioPlayer.duration || 0;
     const progressPercent = (duration > 0) ? (currentTime / duration) * 100 : 0;
     progressSlider.style.setProperty('--progress', `${progressPercent}%`);
+
+    // 현재 시간에 맞는 가사 인덱스 찾기
     let highlightedLineIndex = -1;
-    for (let i = 0; i < currentLyrics.length; i++) { const lineStartTime = parseSrtTime(currentLyrics[i].start_time); if (currentTime >= lineStartTime) { highlightedLineIndex = i; } else { break; } }
-    const allLines = lyricsContainer.querySelectorAll('.lyric-line');
-    allLines.forEach(line => { line.classList.remove('highlighted'); });
-    if (highlightedLineIndex > -1) { const lineToHighlight = document.getElementById('lyric-line-' + highlightedLineIndex); if (lineToHighlight) { lineToHighlight.classList.add('highlighted'); lyricsContainer.scrollTop = lineToHighlight.offsetTop - (lyricsContainer.offsetHeight / 2) + (lineToHighlight.offsetHeight / 2); } }
+    for (let i = 0; i < currentLyrics.length; i++) {
+        const lineStartTime = parseSrtTime(currentLyrics[i].start_time);
+        if (currentTime >= lineStartTime) {
+            highlightedLineIndex = i;
+        } else {
+            break;
+        }
+    }
+
+    // 인덱스가 바뀌었을 때만 스크롤 및 하이라이트 실행
+    if (highlightedLineIndex !== -1 && highlightedLineIndex !== lastHighlightedIndex) {
+        lastHighlightedIndex = highlightedLineIndex;
+
+        const allLines = lyricsContainer.querySelectorAll('.lyric-line');
+        allLines.forEach(line => line.classList.remove('highlighted'));
+
+        const lineToHighlight = document.getElementById('lyric-line-' + highlightedLineIndex);
+        if (lineToHighlight) {
+            lineToHighlight.classList.add('highlighted');
+
+            // ★ 핵심: 부드러운 스크롤 처리
+            lineToHighlight.scrollIntoView({
+                behavior: 'smooth', // 부드럽게 이동
+                block: 'center'     // 가사가 컨테이너 중앙에 오도록 함
+            });
+        }
+    }
 });
 
 
@@ -263,3 +290,4 @@ function formatTime(seconds) {
     const formattedTime = `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     return formattedTime;
 }
+
