@@ -1,44 +1,44 @@
 // script.js
 
-// --- 📍 1. 데이터베이스 (로컬 테스트용) ---
-const playlist = [
-    {
-        title: "[위로] - 김관훈",
-        src: "./audio/25_2 김관훈.mp3",
-        lyricsSrc: "./lyrics/25_2 김관훈.json",
-        artworkSrc: "./images/김관훈_대면전시_25_2.jpg"
-    },
-    {
-        title: "01. 첫 번째 작품",
-        src: "./audio/01.mp3",
-        lyricsSrc: "./lyrics/01.json",
-        artworkSrc: "./images/01_artwork.jpg"
-    },
-    {
-        title: "02. 두 번째 작품",
-        src: "./audio/02.mp3",
-        lyricsSrc: "./lyrics/02.json",
-        artworkSrc: "./images/02_artwork.jpg"
-    },
-    {
-        title: "03. 세 번째 작품",
-        src: "./audio/03.mp3",
-        lyricsSrc: "./lyrics/03.json",
-        artworkSrc: "./images/03_artwork.jpg"
-    },
-    {
-        title: "04. 네 번째 작품",
-        src: "./audio/04.mp3",
-        lyricsSrc: "./lyrics/04.json",
-        artworkSrc: "./images/04_artwork.jpg"
-    },
-    {
-        title: "05. 다섯 번째 작품",
-        src: "./audio/05.mp3",
-        lyricsSrc: "./lyrics/05.json",
-        artworkSrc: "./images/05_artwork.jpg"
-    }
-];
+// // --- 📍 1. 데이터베이스 (로컬 테스트용) ---
+// const playlist = [
+//     {
+//         title: "[위로] - 김관훈",
+//         src: "./audio/25_2 김관훈.mp3",
+//         lyricsSrc: "./lyrics/25_2 김관훈.json",
+//         artworkSrc: "./images/김관훈_대면전시_25_2.jpg"
+//     },
+//     {
+//         title: "01. 첫 번째 작품",
+//         src: "./audio/01.mp3",
+//         lyricsSrc: "./lyrics/01.json",
+//         artworkSrc: "./images/01_artwork.jpg"
+//     },
+//     {
+//         title: "02. 두 번째 작품",
+//         src: "./audio/02.mp3",
+//         lyricsSrc: "./lyrics/02.json",
+//         artworkSrc: "./images/02_artwork.jpg"
+//     },
+//     {
+//         title: "03. 세 번째 작품",
+//         src: "./audio/03.mp3",
+//         lyricsSrc: "./lyrics/03.json",
+//         artworkSrc: "./images/03_artwork.jpg"
+//     },
+//     {
+//         title: "04. 네 번째 작품",
+//         src: "./audio/04.mp3",
+//         lyricsSrc: "./lyrics/04.json",
+//         artworkSrc: "./images/04_artwork.jpg"
+//     },
+//     {
+//         title: "05. 다섯 번째 작품",
+//         src: "./audio/05.mp3",
+//         lyricsSrc: "./lyrics/05.json",
+//         artworkSrc: "./images/05_artwork.jpg"
+//     }
+// ];
 
 // --- 2. 현재 상태 변수 ---
 let currentTrackIndex = 0; 
