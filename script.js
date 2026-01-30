@@ -1,293 +1,209 @@
-// script.js
+/**
+ * script.js - Bamboo Docent Service 2026
+ * 기능: SRT 파싱, 오디오 제어, 부드러운 가사 스크롤, 슬라이드쇼
+ */
 
-// // --- 📍 1. 데이터베이스 (로컬 테스트용) ---
-// const playlist = [
-//     {
-//         title: "[위로] - 김관훈",
-//         src: "./audio/25_2 김관훈.mp3",
-//         lyricsSrc: "./lyrics/25_2 김관훈.json",
-//         artworkSrc: "./images/김관훈_대면전시_25_2.jpg"
-//     },
-//     {
-//         title: "01. 첫 번째 작품",
-//         src: "./audio/01.mp3",
-//         lyricsSrc: "./lyrics/01.json",
-//         artworkSrc: "./images/01_artwork.jpg"
-//     },
-//     {
-//         title: "02. 두 번째 작품",
-//         src: "./audio/02.mp3",
-//         lyricsSrc: "./lyrics/02.json",
-//         artworkSrc: "./images/02_artwork.jpg"
-//     },
-//     {
-//         title: "03. 세 번째 작품",
-//         src: "./audio/03.mp3",
-//         lyricsSrc: "./lyrics/03.json",
-//         artworkSrc: "./images/03_artwork.jpg"
-//     },
-//     {
-//         title: "04. 네 번째 작품",
-//         src: "./audio/04.mp3",
-//         lyricsSrc: "./lyrics/04.json",
-//         artworkSrc: "./images/04_artwork.jpg"
-//     },
-//     {
-//         title: "05. 다섯 번째 작품",
-//         src: "./audio/05.mp3",
-//         lyricsSrc: "./lyrics/05.json",
-//         artworkSrc: "./images/05_artwork.jpg"
-//     }
-// ];
-
-// --- 2. 현재 상태 변수 ---
+// --- 1. 상태 변수 ---
 let currentTrackIndex = 0; 
 let currentLyrics = [];    
-// ▼▼▼ ★★★ (새로 추가) 슬라이드쇼용 변수 ★★★ ▼▼▼
+let lastHighlightedIndex = -1; // 가사 중복 강조 방지
 let currentSlideIndex = 0;
 let slideshowImages = [];
-// ▲▲▲ ★★★ (새로 추가) ★★★ ▲▲▲
 
-// --- 3. HTML 요소 가져오기 (DOM 조작) ---
+// --- 2. DOM 요소 ---
 const playerContainer = document.querySelector('.player-container'); 
 const audioPlayer = document.getElementById('audio-player');
 const nowPlayingTitle = document.getElementById('now-playing-title');
-const prevBtn = document.getElementById('prev-btn');
 const playPauseBtn = document.getElementById('play-pause-btn');
-const nextBtn = document.getElementById('next-btn');
-const listToggleBtn = document.getElementById('list-toggle-btn');
-const playlistMenu = document.getElementById('playlist-menu');
-const lyricsContainer = document.getElementById('lyrics-container');
-const artworkImage = document.getElementById('artwork-image'); 
-const volumeSlider = document.getElementById('volume-slider'); 
 const progressSlider = document.getElementById('progress-slider');
 const currentTimeText = document.getElementById('current-time-text');
 const totalTimeText = document.getElementById('total-time-text');
+const lyricsContainer = document.getElementById('lyrics-container');
+const artworkImage = document.getElementById('artwork-image'); 
+const volumeSlider = document.getElementById('volume-slider'); 
 const welcomeOverlay = document.getElementById('welcome-overlay');
 const startTourBtn = document.getElementById('start-tour-btn');
-// ▼▼▼ ★★★ (새로 추가) 슬라이드쇼 컨테이너 ★★★ ▼▼▼
 const welcomeSlideshow = document.getElementById('welcome-slideshow');
-// ▲▲▲ ★★★ (새로 추가) ★★★ ▲▲▲
+const playlistMenu = document.getElementById('playlist-menu');
+const listToggleBtn = document.getElementById('list-toggle-btn');
 
-// --- 4. 핵심 기능 함수들 ---
-// ... (loadTrack, togglePlayPause, playNext, playPrev, createPlaylistMenu, toggleList 함수는 이전과 100% 동일) ...
+// --- 3. 핵심 로직: SRT 파서 ---
+function parseSRT(data) {
+    const lines = data.split(/\r?\n/);
+    const result = [];
+    let currentItem = {};
+
+    lines.forEach(line => {
+        line = line.trim();
+        if (!line) return;
+
+        if (!isNaN(line)) {
+            if (currentItem.text) result.push(currentItem);
+            currentItem = {};
+        } else if (line.includes(' --> ')) {
+            currentItem.start_time = line.split(' --> ')[0].trim();
+        } else {
+            currentItem.text = currentItem.text ? currentItem.text + " " + line : line;
+        }
+    });
+    if (currentItem.text) result.push(currentItem);
+    return result;
+}
+
+// --- 4. 트랙 로드 및 재생 ---
 async function loadTrack(trackIndex, autoplay = true) {
-    if (trackIndex < 0 || trackIndex >= playlist.length) { console.error("Invalid track index:", trackIndex); return; }
+    if (trackIndex < 0 || trackIndex >= playlist.length) return;
+    
     currentTrackIndex = trackIndex;
     const track = playlist[trackIndex];
+    
+    // 오디오 및 UI 설정
     audioPlayer.src = track.src;
     nowPlayingTitle.textContent = track.title;
     artworkImage.src = track.artworkSrc || "./images/default_artwork.jpg"; 
-    audioPlayer.onloadedmetadata = () => { const duration = audioPlayer.duration; progressSlider.max = duration; totalTimeText.textContent = formatTime(duration); };
+    
+    // 가사 초기화
     lyricsContainer.innerHTML = ""; 
     currentLyrics = [];           
+    lastHighlightedIndex = -1;
+
+    // SRT 가사 로드
     if (track.lyricsSrc) {
         try {
             const response = await fetch(track.lyricsSrc);
-            if (!response.ok) throw new Error("가사 파일을 찾을 수 없습니다.");
-            currentLyrics = await response.json(); 
+            if (!response.ok) throw new Error("SRT 로드 실패");
+            const srtData = await response.text();
+            currentLyrics = parseSRT(srtData); 
+            
             currentLyrics.forEach((line, index) => {
                 const p = document.createElement('p');
                 p.textContent = line.text;
                 p.id = 'lyric-line-' + index;
                 p.classList.add('lyric-line');
-                const jumpTimeInSeconds = parseSrtTime(line.start_time);
-                p.addEventListener('click', () => { audioPlayer.currentTime = jumpTimeInSeconds; if (audioPlayer.paused) { togglePlayPause(); } });
+                
+                const jumpTime = parseSrtTime(line.start_time);
+                p.addEventListener('click', () => { 
+                    audioPlayer.currentTime = jumpTime; 
+                    if (audioPlayer.paused) togglePlayPause(); 
+                });
                 lyricsContainer.appendChild(p);
             });
-        } catch (error) { console.error("가사 로딩 실패:", error); lyricsContainer.innerHTML = "<p class='lyric-line'>가사를 불러오지 못했습니다.</p>"; }
-    } else { lyricsContainer.innerHTML = "<p class='lyric-line'>등록된 가사가 없습니다.</p>"; }
-    if (autoplay) { audioPlayer.play(); playPauseBtn.innerHTML = "||"; playPauseBtn.classList.remove('is-paused-icon'); }
-    else { audioPlayer.pause(); playPauseBtn.innerHTML = "▶"; playPauseBtn.classList.add('is-paused-icon'); }
-}
-function togglePlayPause() {
-    if (audioPlayer.paused) { audioPlayer.play(); playPauseBtn.innerHTML = "||"; playPauseBtn.classList.remove('is-paused-icon'); }
-    else { audioPlayer.pause(); playPauseBtn.innerHTML = "▶"; playPauseBtn.classList.add('is-paused-icon'); }
-}
-function playNext() { currentTrackIndex++; if (currentTrackIndex >= playlist.length) currentTrackIndex = 0; loadTrack(currentTrackIndex, true); }
-function playPrev() { currentTrackIndex--; if (currentTrackIndex < 0) currentTrackIndex = playlist.length - 1; loadTrack(currentTrackIndex, true); }
-function createPlaylistMenu() {
-    playlistMenu.innerHTML = ""; 
-    playlist.forEach((track, index) => {
-        const li = document.createElement('li');
-        li.textContent = track.title;
-        li.addEventListener('click', () => { loadTrack(index, true); playerContainer.classList.remove('playlist-active'); listToggleBtn.textContent = "전체 작품 목록 보기"; });
-        playlistMenu.appendChild(li);
-    });
-}
-function toggleList() {
-    playerContainer.classList.toggle('playlist-active');
-    if (playerContainer.classList.contains('playlist-active')) { listToggleBtn.textContent = "목록 닫기"; }
-    else { listToggleBtn.textContent = "전체 작품 목록 보기"; }
+        } catch (error) {
+            console.error(error);
+            lyricsContainer.innerHTML = "<p class='lyric-line'>가사를 불러올 수 없습니다.</p>";
+        }
+    }
+
+    if (autoplay) {
+        audioPlayer.play();
+        playPauseBtn.textContent = "||";
+    } else {
+        audioPlayer.pause();
+        playPauseBtn.textContent = "▶";
+    }
 }
 
-
-// --- 5. 이벤트 리스너 연결 ---
-// ... (이전 코드와 100% 동일) ...
-playPauseBtn.addEventListener('click', togglePlayPause);
-nextBtn.addEventListener('click', playNext);
-prevBtn.addEventListener('click', playPrev);
-listToggleBtn.addEventListener('click', toggleList); 
-volumeSlider.addEventListener('input', (e) => { const value = e.target.value; audioPlayer.volume = value; const percent = value * 100; e.target.style.setProperty('--volume-progress', `${percent}%`); });
-progressSlider.addEventListener('input', (e) => { audioPlayer.currentTime = e.target.value; });
-audioPlayer.addEventListener('ended', () => { const isLastTrack = (currentTrackIndex === playlist.length - 1); if (isLastTrack) { loadTrack(0, false); } else { playNext(); } });
-playerContainer.addEventListener('click', (event) => { if (playerContainer.classList.contains('playlist-active')) { if (event.target === playerContainer) { toggleList(); } } });
-startTourBtn.addEventListener('click', () => {
-    welcomeOverlay.classList.add('hidden');
-    togglePlayPause();
-});
-
-
-// --- 6. 싱크 가사/진행률 핵심 엔진 (TimeUpdate) ---
-let lastHighlightedIndex = -1; // (추가) 중복 실행 방지용 변수
-
+// --- 5. 가사 스크롤 엔진 (TimeUpdate) ---
 audioPlayer.addEventListener('timeupdate', () => {
     const currentTime = audioPlayer.currentTime;
-    currentTimeText.textContent = formatTime(currentTime);
-    progressSlider.value = currentTime;
     
-    const duration = audioPlayer.duration || 0;
-    const progressPercent = (duration > 0) ? (currentTime / duration) * 100 : 0;
+    // 진행바 업데이트
+    progressSlider.value = currentTime;
+    currentTimeText.textContent = formatTime(currentTime);
+    const progressPercent = (audioPlayer.duration > 0) ? (currentTime / audioPlayer.duration) * 100 : 0;
     progressSlider.style.setProperty('--progress', `${progressPercent}%`);
 
-    // 현재 시간에 맞는 가사 인덱스 찾기
-    let highlightedLineIndex = -1;
+    // 현재 하이라이트할 가사 인덱스 찾기
+    let activeIndex = -1;
     for (let i = 0; i < currentLyrics.length; i++) {
-        const lineStartTime = parseSrtTime(currentLyrics[i].start_time);
-        if (currentTime >= lineStartTime) {
-            highlightedLineIndex = i;
+        if (currentTime >= parseSrtTime(currentLyrics[i].start_time)) {
+            activeIndex = i;
         } else {
             break;
         }
     }
 
-    // 인덱스가 바뀌었을 때만 스크롤 및 하이라이트 실행
-    if (highlightedLineIndex !== -1 && highlightedLineIndex !== lastHighlightedIndex) {
-        lastHighlightedIndex = highlightedLineIndex;
-
+    // 줄이 바뀔 때만 스크롤 실행
+    if (activeIndex !== -1 && activeIndex !== lastHighlightedIndex) {
+        lastHighlightedIndex = activeIndex;
+        
         const allLines = lyricsContainer.querySelectorAll('.lyric-line');
-        allLines.forEach(line => line.classList.remove('highlighted'));
+        allLines.forEach(l => l.classList.remove('highlighted'));
 
-        const lineToHighlight = document.getElementById('lyric-line-' + highlightedLineIndex);
-        if (lineToHighlight) {
-            lineToHighlight.classList.add('highlighted');
-
-            // ★ 핵심: 부드러운 스크롤 처리
-            lineToHighlight.scrollIntoView({
-                behavior: 'smooth', // 부드럽게 이동
-                block: 'center'     // 가사가 컨테이너 중앙에 오도록 함
-            });
+        const activeLine = document.getElementById('lyric-line-' + activeIndex);
+        if (activeLine) {
+            activeLine.classList.add('highlighted');
+            // 부드럽게 중앙으로 스크롤
+            activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 });
 
-
-// --- 7. 페이지 진입점(Entry Point) 설정 ---
-window.addEventListener('load', () => {
-    createPlaylistMenu();
-    
-    // ▼▼▼ ★★★ (새로 추가) 슬라이드쇼 시작 ★★★ ▼▼▼
-    startWelcomeSlideshow();
-    // ▲▲▲ ★★★ (새로 추가) ★★★ ▲▲▲
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const trackToPlay = urlParams.get('track');
-
-    if (trackToPlay !== null) { 
-        const trackIndex = parseInt(trackToPlay, 10);
-        if (!isNaN(trackIndex) && trackIndex >= 0 && trackIndex < playlist.length) {
-            loadTrack(trackIndex, true); 
-            welcomeOverlay.classList.add('hidden'); 
-        } else {
-            loadTrack(0, false); 
-        }
+// --- 6. 기타 제어 함수 ---
+function togglePlayPause() {
+    if (audioPlayer.paused) {
+        audioPlayer.play();
+        playPauseBtn.textContent = "||";
     } else {
-        loadTrack(0, false); 
+        audioPlayer.pause();
+        playPauseBtn.textContent = "▶";
     }
+}
+
+function formatTime(seconds) {
+    if (isNaN(seconds)) return "0:00";
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+}
+
+function parseSrtTime(srtTime) {
+    if (!srtTime) return 0;
+    const parts = srtTime.replace(',', '.').split(':');
+    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+}
+
+// --- 7. 초기화 및 이벤트 ---
+window.addEventListener('load', () => {
+    loadTrack(0, false);
+    startWelcomeSlideshow();
     
-    audioPlayer.volume = volumeSlider.value;
-    const initialValue = volumeSlider.value;
-    const initialPercent = initialValue * 100;
-    volumeSlider.style.setProperty('--volume-progress', `${initialPercent}%`);
-    progressSlider.style.setProperty('--progress', `0%`);
+    // 플레이리스트 메뉴 생성
+    playlist.forEach((track, index) => {
+        const li = document.createElement('li');
+        li.textContent = track.title;
+        li.onclick = () => { loadTrack(index, true); toggleList(); };
+        playlistMenu.appendChild(li);
+    });
 });
 
+playPauseBtn.addEventListener('click', togglePlayPause);
+startTourBtn.addEventListener('click', () => {
+    welcomeOverlay.classList.add('hidden');
+    togglePlayPause();
+});
 
-// --- 8. 헬퍼 함수들 ---
+function toggleList() {
+    playerContainer.classList.toggle('playlist-active');
+    listToggleBtn.textContent = playerContainer.classList.contains('playlist-active') ? "목록 닫기" : "전체 작품 목록 보기";
+}
+listToggleBtn.onclick = toggleList;
 
-// ▼▼▼ ★★★ (새로 추가) 슬라이드쇼 함수 ★★★ ▼▼▼
-/**
- * playlist에서 이미지를 가져와 슬라이드쇼를 시작합니다.
- */
+// 슬라이드쇼 함수 (이전 로직 유지)
 function startWelcomeSlideshow() {
-    // 1. playlist에서 이미지 경로만 추출
-    const imageUrls = playlist
-        .map(track => track.artworkSrc)
-        .filter(src => src); // artworkSrc가 없는 항목 제외
-
-    if (imageUrls.length === 0) return; // 이미지가 없으면 실행 안 함
-
-    // 2. <img> 태그를 동적으로 생성하여 DOM에 추가
-    imageUrls.forEach(url => {
+    const images = playlist.map(t => t.artworkSrc).filter(s => s);
+    images.forEach(url => {
         const img = document.createElement('img');
         img.src = url;
         welcomeSlideshow.appendChild(img);
-        slideshowImages.push(img); // 배열에 저장
+        slideshowImages.push(img);
     });
-
-    // 3. 첫 번째 이미지 바로 표시
-    slideshowImages[0].classList.add('visible');
-
-    // 4. 5초마다 다음 슬라이드로 변경
-    setInterval(nextSlide, 5000); 
+    if (slideshowImages.length > 0) {
+        slideshowImages[0].classList.add('visible');
+        setInterval(() => {
+            slideshowImages[currentSlideIndex].classList.remove('visible');
+            currentSlideIndex = (currentSlideIndex + 1) % slideshowImages.length;
+            slideshowImages[currentSlideIndex].classList.add('visible');
+        }, 5000);
+    }
 }
-
-/**
- * 다음 슬라이드를 보여줍니다.
- */
-function nextSlide() {
-    if (slideshowImages.length === 0) return;
-
-    // 1. 현재 이미지 숨기기
-    slideshowImages[currentSlideIndex].classList.remove('visible');
-
-    // 2. 다음 인덱스 계산 (배열 끝이면 0으로)
-    currentSlideIndex = (currentSlideIndex + 1) % slideshowImages.length;
-
-    // 3. 다음 이미지 보이기
-    slideshowImages[currentSlideIndex].classList.add('visible');
-}
-// ▲▲▲ ★★★ (새로 추가) ★★★ ▲▲▲
-
-
-/**
- * SRT 시간 변환 함수
- */
-function parseSrtTime(srtTime) {
-    // ... (이전 코드와 100% 동일) ...
-    if (!srtTime || typeof srtTime !== 'string') { return 0; }
-    const parts = srtTime.split(',');
-    if (parts.length !== 2) return 0; 
-    const time = parts[0];
-    const milliseconds = parts[1];
-    const timeParts = time.split(':');
-    if (timeParts.length !== 3) return 0; 
-    const [hours, minutes, seconds] = timeParts;
-    const ms = parseInt(milliseconds);
-    if (isNaN(ms) || isNaN(parseInt(hours)) || isNaN(parseInt(minutes)) || isNaN(parseInt(seconds))) { return 0; }
-    const totalSeconds = (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds) + (ms / 1000);
-    return totalSeconds;
-}
-
-/**
- * 시간 포맷 함수
- */
-function formatTime(seconds) {
-    // ... (이전 코드와 100% 동일) ...
-    if (isNaN(seconds) || seconds === 0) { return "0:00"; }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    const formattedTime = `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-    return formattedTime;
-}
-
